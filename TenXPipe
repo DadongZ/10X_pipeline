@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import subprocess
+import argparse as ap 
+import os
+import yaml
+import time
+import pandas as pd 
+import multiprocessing
+import functools
+from TenXSettings import YmlSettings
+
+def _my10xsamples(sampleid, cmdlist, logdir, showcmd):
+    """process cellranger count for each sample
+    Args:
+        sampleid (str): sample id
+        cmdlist (list): cellranger cmd
+        logdir (str): log directory path
+        showcmd (boolean): show the commands if True
+    """
+    cmdrun = cmdlist + ['--id', sampleid, '--sample', sampleid]
+    samplecmd = [yml.singularity, 'exec', yml.cranger_image, 'bash -c', " ".join(cntrun)]
+    fout = os.path.join(logdir, sampleid+'.out')
+    ferr = os.path.join(logdir, sampleid+'.err')
+    if showcmd:
+        print(samplecmd)
+    with open(fout, 'w') as stdout, open(ferr, 'w') as stderr:
+        p = subprocess.Popen(samplecmd, stdout=stdout, stderr=stderr).wait()
+
+def mkfastq(yml):
+    fcores = str(yml.fcores)
+    mkfcmd = ['cellranger', 'mkfastq', 
+               '--diable-ui',
+               '--id=' + yml.projid, 
+               '--qc',
+               '--run=' + yml.datadir,
+               '--output-dir=' + yml.outdir,
+               '--samplesheet=' + yml.samplesheet,
+               '--localcores=' + fcores]
+    mkrun = [yml.singularity, 'exec', yml.cranger_image, 'bash -c', " ".join(mkfcmd)]
+    fout = os.path.join(yml.logdir, 'mkfastq.out')
+    ferr = os.path.join(yml.logdir, 'mkfastq.err')
+
+    if yml.showcmd:
+        print(mkrun)
+
+    with open(fout, 'w') as stdout, open(ferr, 'w') as stderr:
+        p = subprocess.Popen(mkrun, stdout=stdout, stderr=stderr).wait()
+
+def count(yml, sampleids):
+    cntcmd = ['cellranger', 'count',
+               '--diable-ui',
+               '--transcriptome='+yml.refdir,
+               '--fastqs='+yml.outdir,
+               '--expect-cells='+str(yml.ncells),
+               '--localcores='+str(yml.ccores)]
+
+    if yml.showcmd:
+        print(cntrun)
+
+    my10xsample = functools.partial(_my10xsamples,
+                                    cmdlist=cntcmd,
+                                    logdir=yml.logdir,
+                                    showcmd=yml.showcmd)
+    
+    pools = multiprocessing.Pool(property = yml.cjobs)
+    out = pools.map(my10xsample, sampleids)
+    pools.close()
+
+def main(args):
+    setting_file = args['settings']
+    yml = YmlSettings(setting_file)
+    
+    yml.print_pg()
+    
+    if not os.path.exists(yml.logdir):
+        os.mkdir(yml.logdir)
+
+    if not os.path.exists(yml.outdir):
+        os.mkdir(yml.outdir)
+
+    if yml.sampleids is None:
+        sampledf = pd.read_csv(yml.samplesheet, sep=',', skiprows=yml.sampleskip)
+        sampleids = list(sampledf[yml.sampleidcol])
+    else:
+        sampleids = yml.sampleids
+
+    if yml.makefastq:
+        mkfastq(yml)
+    if yml.getcounts:
+        count(yml, sampleids)
+
+parser = ap.ArgumentParser()
+parser.add_argument('-P', '--setings', type=str, help='path to the setting.yml file')
+
+if __name__=='__main__':
+    args = vars(parser.parse_args())
+    main(args)

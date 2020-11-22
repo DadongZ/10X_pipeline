@@ -1,0 +1,47 @@
+# Set to True to run cellranger mkfastq
+makefastq: True
+# Set to True to run cellranger count
+getcounts: True
+# Set to True to print out commands
+showcmd: True
+
+# singularity binary
+singularity: /usr/local/bin/singularity
+# Cell Ranger binary
+cranger_image: /mnt/d/gitlab/containers/cellranger/build/cellranger-4.0.0.sif
+# Path to cellranger reference files
+refdir: /data/Annotations/cellranger3.1.0/refdata-cellranger-GRCh38-3.0.0/
+
+# Path to project input data directory
+datadir: /data/Projects/Marks/10X/Data/190919_A00257_0187_BHG2GCDRXX/
+# Path to directory for Popen stdout and stderr files
+logdir: ./log/
+#Path to directory for the output
+outdir: ./output/
+# Path to output directory
+projid: Test
+# If set to null, the sample ids will be taken from sample sheet
+# Otherwise provide python list e.g., ['sampid1', 'sampid2']
+sampleids: null
+# Samplefile csv file (will be ignored if sampleids not set to null
+samplesheet: /data/Projects/Marks/10X/Data/Marks_samplesheet.csv
+# The sample ids will be extracted from this column of the sample sheet
+# Note that this is case sensitive
+sampleidcol: Sample
+# Some sample sheets have pre-ambles. need to specify the number of rows
+# to skip
+sampleskip: 0
+# The delimiter for the sample sheet
+sampledelim: ","
+
+# Popen will submit cjobs at a time
+cjobs: 1
+# The number of cores to be used for each sample
+ccores: 1
+# The number of cores to be used during mkfastq. 
+# It is likely that the optimal number is the number of samples
+# This needs to researched as cellraner provides additional threading
+# options
+fcores: 1
+# The number of targeted cells. Typically, 10000
+ncells: 10000
